@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>香港账单</title>
+<meta name="description" content="香港旅行账单记录，数据只保存在本机浏览器">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="香港账单">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
+<style>
+/* ==========================================================
+   变量 / 主题
+   ========================================================== */
+:root{
+  --bg:#f2f2f7;
+  --card:#ffffff;
+  --card2:#ffffff;
+  --text:#101828;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --hover:#f3f4f6;
+  --accent:#0f766e;
+  --accent-ink:#ffffff;
+  --accent-soft:#e3f2f0;
+  --danger:#d92d20;
+  --cny:#9a4a00;
+  --cny-bg:#fdf1e3;
+  --hkd:#1d4ed8;
+  --hkd-bg:#e8eefc;
+  --shadow:0 8px 24px rgba(16,24,40,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000000;
+    --card:#1c1c1e;
+    --card2:#2c2c2e;
+    --text:#f5f5f7;
+    --muted:#9aa0a6;
+    --line:#2f2f31;
+    --hover:#2c2c2e;
+    --accent:#2dd4bf;
+    --accent-ink:#06302c;
+    --accent-soft:#123b37;
+    --danger:#ff6b60;
+    --cny:#f0b27a;
+    --cny-bg:#3a2a18;
+    --hkd:#9ec1ff;
+    --hkd-bg:#1b2b4d;
+    --shadow:0 8px 24px rgba(0,0,0,.6);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg);color:var(--text);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-text-size-adjust:100%;
+  overscroll-behavior-y:none;
+}
+button,input{font:inherit;color:inherit}
+.hidden{display:none !important}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+.page{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+
+/* ==========================================================
+   顶栏 / 滚动区
+   ========================================================== */
+.appbar{
+  flex:none;background:var(--card);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 8px) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));
+  display:flex;align-items:center;gap:8px;
+}
+.appbar h1{flex:1;margin:0;font-size:18px;font-weight:700;letter-spacing:.5px}
+.btn-sm{
+  min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);
+  background:var(--card2);font-size:14px;font-weight:600;white-space:nowrap;
+}
+.btn-sm:active{background:var(--hover)}
+.scroll{
+  flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:12px max(12px,env(safe-area-inset-right)) 110px max(12px,env(safe-area-inset-left));
+}
+
+/* ==========================================================
+   账单列表
+   ========================================================== */
+.list{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{
+  display:block;width:100%;text-align:left;background:transparent;border:0;
+  border-bottom:1px solid var(--line);padding:11px 14px;min-height:64px;
+}
+.row:last-child{border-bottom:0}
+.row:active{background:var(--hover)}
+.r1{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.r-name{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r-amt{font-weight:700;white-space:nowrap}
+.tag{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:700}
+.tag-CNY{background:var(--cny-bg);color:var(--cny)}
+.tag-HKD{background:var(--hkd-bg);color:var(--hkd)}
+.r2{display:flex;justify-content:space-between;gap:10px;margin-top:3px;font-size:13px;color:var(--muted)}
+.r2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r2 .r-ch{flex:0 1 auto;max-width:45%}
+.r2 .r-pay{flex:1 1 auto;text-align:right;min-width:0}
+.empty{padding:48px 20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.9}
+.hint{margin:14px 4px 0;text-align:center;font-size:12px;color:var(--muted);line-height:1.8}
+
+/* ==========================================================
+   悬浮新增按钮
+   ========================================================== */
+.fab{
+  position:absolute;right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));
+  width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);
+  box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;z-index:6;
+}
+.fab:active{transform:scale(.94)}
+
+/* ==========================================================
+   底部 Tab
+   ========================================================== */
+.tabbar{
+  flex:none;display:flex;background:var(--card);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.tabbar button{
+  flex:1;min-height:52px;border:0;background:transparent;color:var(--muted);
+  font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+}
+.tabbar button.on{color:var(--accent)}
+
+/* ==========================================================
+   报告
+   ========================================================== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ov-item{background:var(--bg);border-radius:12px;padding:10px 12px;min-height:64px;display:flex;flex-direction:column;justify-content:center}
+.ov-label{font-size:12px;color:var(--muted)}
+.ov-val{font-size:18px;font-weight:700;margin-top:2px}
+.ov-rate{grid-column:1 / -1;text-align:left;border:1px dashed var(--accent);background:var(--accent-soft);width:100%}
+.ov-rate .ov-val{font-size:16px}
+.tap{color:var(--accent);font-weight:700;margin-left:6px}
+.rate-line{display:flex;align-items:center;gap:8px;margin-top:10px}
+.rate-note{flex:1;font-size:12px;color:var(--muted)}
+.grand{margin-top:12px;padding:14px;border-radius:12px;background:var(--accent);color:var(--accent-ink);text-align:center}
+.grand-label{font-size:12px;opacity:.85}
+.grand-val{font-size:30px;font-weight:800;line-height:1.25;margin-top:2px;letter-spacing:.5px}
+
+.seg{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:12px}
+.seg button{flex:1;min-height:44px;border:0;border-radius:9px;background:transparent;font-size:14px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{padding:9px 4px;border-bottom:1px solid var(--line);text-align:right}
+.tbl th:first-child,.tbl td:first-child{text-align:left;max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl thead th{font-size:12px;color:var(--muted);font-weight:600}
+.tbl tfoot td{font-weight:800;border-bottom:0;border-top:2px solid var(--line)}
+.sec-title{margin:0 4px 8px;font-size:13px;color:var(--muted);font-weight:600}
+.btn-wide{width:100%;min-height:48px;border-radius:12px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-weight:700}
+.btn-wide:active{background:var(--accent-soft)}
+
+/* ==========================================================
+   底部面板 / 对话框 / 提示
+   ========================================================== */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .22s;z-index:20}
+.backdrop.show{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--card);
+  border-radius:18px 18px 0 0;box-shadow:var(--shadow);
+  transform:translateY(105%);transition:transform .26s cubic-bezier(.3,.8,.4,1);
+  max-height:90vh;max-height:90dvh;display:flex;flex-direction:column;
+}
+.sheet.show{transform:translateY(0)}
+.sheet-head{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.sheet-head h2{flex:1;margin:0;font-size:17px;font-weight:700;text-align:center}
+.sheet-head button{min-height:44px;min-width:60px;border:0;background:transparent;font-size:15px;font-weight:600;color:var(--accent)}
+.sheet-head .cancel{color:var(--muted)}
+.sheet-body{
+  flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:12px 14px calc(20px + env(safe-area-inset-bottom));
+}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:600}
+.field input{
+  width:100%;min-height:46px;font-size:16px;padding:10px 12px;border-radius:12px;
+  border:1px solid var(--line);background:var(--bg);
+}
+.field input:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--card)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{
+  min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card2);font-size:14px;color:var(--text);
+}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip:active{opacity:.7}
+.cur-toggle{display:flex;gap:10px}
+.cur-toggle button{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-weight:700}
+.cur-toggle button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn-del{width:100%;min-height:48px;margin-top:6px;border-radius:12px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-weight:700}
+
+.dialog{
+  position:fixed;z-index:22;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);
+  width:min(88vw,340px);background:var(--card);border-radius:16px;padding:18px 16px 14px;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;
+}
+.dialog.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.dialog h3{margin:0 0 6px;font-size:17px;text-align:center}
+.dialog p{margin:0 0 14px;font-size:14px;color:var(--muted);text-align:center;line-height:1.6}
+.dialog input{width:100%;min-height:46px;font-size:16px;padding:10px 12px;margin-bottom:14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);text-align:center}
+.dialog .acts{display:flex;flex-direction:column;gap:8px}
+.dialog .acts button{min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--card2);font-weight:600}
+.dialog .acts button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.dialog .acts button.danger{color:var(--danger);border-color:var(--danger)}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);
+  background:rgba(20,20,22,.94);color:#fff;font-size:14px;padding:10px 16px;border-radius:12px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:30;max-width:84vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ 账单页 ============ -->
+  <section class="page" id="pageList">
+    <header class="appbar">
+      <h1>香港账单</h1>
+      <button class="btn-sm" id="btnImport">导入 CSV</button>
+      <button class="btn-sm" id="btnExport">导出 CSV</button>
+    </header>
+    <div class="scroll">
+      <div id="listBox"></div>
+      <p class="hint" id="exportHint"></p>
+    </div>
+    <button class="fab" id="fab" aria-label="新增账单">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </section>
+
+  <!-- ============ 报告页 ============ -->
+  <section class="page hidden" id="pageReport">
+    <header class="appbar"><h1>统计报告</h1></header>
+    <div class="scroll">
+      <div class="card">
+        <div class="ov-grid">
+          <div class="ov-item"><div class="ov-label">CNY 合计</div><div class="ov-val num" id="ovCny">0.00</div></div>
+          <div class="ov-item"><div class="ov-label">HKD 合计</div><div class="ov-val num" id="ovHkd">0.00</div></div>
+          <button class="ov-item ov-rate" id="rateBox">
+            <div class="ov-label">当前汇率<span class="tap">点击修改</span></div>
+            <div class="ov-val num" id="ovRate">1 HKD = 0.85372 CNY</div>
+          </button>
+        </div>
+        <div class="rate-line">
+          <span class="rate-note" id="rateNote"></span>
+          <button class="btn-sm" id="btnResetRate">恢复默认</button>
+        </div>
+        <div class="grand">
+          <div class="grand-label">折合人民币总额</div>
+          <div class="grand-val num" id="ovTotal">￥0.00</div>
+        </div>
+      </div>
+
+      <p class="sec-title">分组统计</p>
+      <div class="seg" id="segDim">
+        <button data-dim="channel" class="on">购买渠道</button>
+        <button data-dim="payment">支付通道</button>
+        <button data-dim="card">银行卡</button>
+      </div>
+
+      <div class="card">
+        <table class="tbl">
+          <thead><tr><th>名称</th><th class="num">CNY</th><th class="num">HKD</th></tr></thead>
+          <tbody id="grpBody"></tbody>
+          <tfoot><tr><td>合计</td><td class="num" id="grpSumCny">0.00</td><td class="num" id="grpSumHkd">0.00</td></tr></tfoot>
+        </table>
+      </div>
+
+      <button class="btn-wide" id="btnCopy">复制报告</button>
+      <p class="hint">共 <span id="cntItems">0</span> 笔记录 · 数据只保存在本机浏览器</p>
+    </div>
+  </section>
+
+  <!-- ============ 底部 Tab ============ -->
+  <nav class="tabbar">
+    <button id="tabList" class="on">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-2.5-1.6L14 21l-2-1.6L10 21l-2.5-1.6L5 21z"/><path d="M9 8h6M9 12.5h6"/></svg>
+      <span>账单</span>
+    </button>
+    <button id="tabReport">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 21h18M6.5 21v-8M12 21V4M17.5 21v-5.5"/></svg>
+      <span>报告</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ============ 新增 / 编辑面板 ============ -->
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-head">
+    <button class="cancel" id="btnCancel">取消</button>
+    <h2 id="sheetTitle">新增账单</h2>
+    <button id="btnSave">保存</button>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label for="fName">项目</label>
+      <input id="fName" type="text" enterkeyhint="next" autocomplete="off" placeholder="例如：门票">
+      <div class="chips" id="chipsName"></div>
+    </div>
+    <div class="field">
+      <label for="fChannel">购买渠道</label>
+      <input id="fChannel" type="text" enterkeyhint="next" autocomplete="off" placeholder="例如：官网">
+      <div class="chips" id="chipsChannel"></div>
+    </div>
+    <div class="field">
+      <label for="fAmount">金额</label>
+      <input id="fAmount" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0.00">
+    </div>
+    <div class="field">
+      <label>币种</label>
+      <div class="cur-toggle">
+        <button type="button" data-cur="CNY" id="curCNY">CNY 人民币</button>
+        <button type="button" data-cur="HKD" id="curHKD">HKD 港币</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="fPayment">支付通道</label>
+      <input id="fPayment" type="text" enterkeyhint="next" autocomplete="off" placeholder="例如：信用卡">
+      <div class="chips" id="chipsPayment"></div>
+    </div>
+    <div class="field">
+      <label for="fCard">银行卡</label>
+      <input id="fCard" type="text" enterkeyhint="done" autocomplete="off" placeholder="例如：储蓄卡">
+      <div class="chips" id="chipsCard"></div>
+    </div>
+    <button class="btn-del hidden" id="btnDelete">删除这笔账单</button>
+  </div>
+</div>
+
+<!-- ============ 通用对话框 ============ -->
+<div class="dialog" id="dialog">
+  <h3 id="dlgTitle"></h3>
+  <p id="dlgMsg"></p>
+  <input id="dlgInput" class="hidden" type="text" inputmode="decimal">
+  <div class="acts" id="dlgActs"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept=".csv,text/csv" class="hidden">
+
+<script>
+"use strict";
+/* ============================================================
+   1. 数据
+   ============================================================ */
+var STORE_KEY = 'hkLedger_v1';
+var RATE_KEY  = 'hkLedger_rate';
+var DEFAULT_RATE = 0.85372;
+var FIELDS = ['name','channel','payment','card'];
+var DIM_LABEL = { channel:'购买渠道', payment:'支付通道', card:'银行卡' };
+var CSV_HEADERS = ['项目','购买渠道','金额','币种','支付通道','银行卡'];
+var HEADER_MAP = {'项目':'name','购买渠道':'channel','金额':'amount','币种':'currency','支付通道':'payment','银行卡':'card'};
+
+/* 账单为空白起步：金额一律以「分」为单位的整数保存，避免浮点误差 */
+var state = { items:[], lastExportAt:null };
+var rate = DEFAULT_RATE;
+var currentTab = 'list';
+var reportDim = 'channel';
+var editingId = null;
+var sheetCurrency = 'CNY';
+var storageWarned = false;
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function lsGet(k){
+  try{ return localStorage.getItem(k); }catch(e){ return null; }
+}
+function lsSet(k,v){
+  try{ localStorage.setItem(k,v); return true; }
+  catch(e){
+    if(!storageWarned){ storageWarned = true; toast('无法写入本机存储，修改可能不会保留'); }
+    return false;
+  }
+}
+
+/* --- 金额：字符串 <-> 分 --- */
+function parseCents(input){
+  if(input === null || input === undefined) return null;
+  var s = String(input).trim().replace(/[,，\s￥¥$]/g, '');
+  if(s === '') return null;
+  var neg = false;
+  if(s.charAt(0) === '-'){ neg = true; s = s.slice(1); }
+  else if(s.charAt(0) === '+'){ s = s.slice(1); }
+  if(!/^\d*(\.\d*)?$/.test(s)) return null;
+  if(s === '' || s === '.') return null;
+  var parts = s.split('.');
+  var ip = parts[0] === '' ? '0' : parts[0];
+  var dp = parts[1] || '';
+  var cents = parseInt(ip, 10) * 100 + parseInt((dp + '00').slice(0,2), 10);
+  if(dp.length > 2 && dp.charAt(2) >= '5') cents += 1;   /* 第三位小数四舍五入 */
+  if(!isFinite(cents)) return null;
+  return neg ? -cents : cents;
+}
+function formatCents(cents){
+  var neg = cents < 0, v = Math.abs(cents);
+  var yuan = Math.floor(v / 100), rest = v % 100;
+  return (neg ? '-' : '') + String(yuan).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + String(rest).padStart(2, '0');
+}
+function plainAmount(cents){
+  var neg = cents < 0, v = Math.abs(cents);
+  return (neg ? '-' : '') + Math.floor(v / 100) + '.' + String(v % 100).padStart(2, '0');
+}
+
+/* --- localStorage 读写 --- */
+function normalizeItem(o){
+  o = o || {};
+  var c = Number(o.cents);
+  return {
+    id: o.id || uid(),
+    name: String(o.name == null ? '' : o.name),
+    channel: String(o.channel == null ? '' : o.channel),
+    cents: isFinite(c) ? Math.round(c) : 0,
+    currency: (String(o.currency).toUpperCase() === 'HKD') ? 'HKD' : 'CNY',
+    payment: String(o.payment == null ? '' : o.payment),
+    card: String(o.card == null ? '' : o.card)
+  };
+}
+/* 一次性清理：早期版本自带 7 条示例数据。若本机存的正是那批一字未改的
+   示例，就清空；只要改过、删过或加过一条，指纹就对不上，不会误删。 */
+var LEGACY_SEED_FP = '7-1hbwvos';
+function fingerprint(list){
+  var s = list.map(function(it){
+    return [it.name, it.channel, it.cents, it.currency, it.payment, it.card].join('\u0001');
+  }).join('\u0002');
+  var h = 5381;
+  for(var i = 0; i < s.length; i++){ h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; }
+  return list.length + '-' + h.toString(36);
+}
+function loadState(){
+  var raw = lsGet(STORE_KEY);
+  if(raw){
+    try{
+      var d = JSON.parse(raw);
+      var items = null, last = null;
+      if(Array.isArray(d)) items = d;
+      else if(d && Array.isArray(d.items)){ items = d.items; last = d.lastExportAt || null; }
+      if(items){
+        items = items.map(normalizeItem);
+        if(fingerprint(items) === LEGACY_SEED_FP){ items = []; last = null; }
+        state = { items: items, lastExportAt: last };
+        if(!items.length && raw) saveState();
+        return;
+      }
+    }catch(e){ /* 数据损坏时回落到空账单 */ }
+  }
+  state = { items: [], lastExportAt: null };
+}
+function saveState(){
+  try{ lsSet(STORE_KEY, JSON.stringify(state)); }catch(e){}
+}
+function loadRate(){
+  var v = parseFloat(lsGet(RATE_KEY));
+  rate = (isFinite(v) && v > 0) ? v : DEFAULT_RATE;
+}
+function saveRate(){ lsSet(RATE_KEY, String(rate)); }
+
+/* --- 统计 --- */
+function totals(){
+  var cny = 0, hkd = 0;
+  state.items.forEach(function(it){
+    if(it.currency === 'HKD') hkd += it.cents; else cny += it.cents;
+  });
+  return { cny: cny, hkd: hkd, total: cny + Math.round(hkd * rate) };
+}
+function groupBy(field){
+  var map = {}, order = [];
+  state.items.forEach(function(it){
+    var key = (it[field] || '').trim() || '（未填写）';
+    if(!map[key]){ map[key] = { name: key, cny: 0, hkd: 0 }; order.push(key); }
+    if(it.currency === 'HKD') map[key].hkd += it.cents; else map[key].cny += it.cents;
+  });
+  return order.map(function(k){ return map[k]; }).sort(function(a, b){
+    return (b.cny + b.hkd * rate) - (a.cny + a.hkd * rate);
+  });
+}
+function historyValues(field){
+  var count = {}, order = [];
+  state.items.forEach(function(it){
+    var v = (it[field] || '').trim();
+    if(!v) return;
+    if(!count[v]){ count[v] = 0; order.push(v); }
+    count[v]++;
+  });
+  return order.sort(function(a, b){ return count[b] - count[a]; }).slice(0, 14);
+}
+
+/* --- CSV --- */
+function csvEscape(s){
+  s = String(s == null ? '' : s);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildCSV(){
+  var lines = [CSV_HEADERS.join(',')];
+  state.items.forEach(function(it){
+    lines.push([it.name, it.channel, plainAmount(it.cents), it.currency, it.payment, it.card].map(csvEscape).join(','));
+  });
+  return '﻿' + lines.join('\r\n') + '\r\n';
+}
+function parseCSV(text){
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  var rows = [], row = [], field = '', inQ = false, i, c;
+  for(i = 0; i < text.length; i++){
+    c = text.charAt(i);
+    if(inQ){
+      if(c === '"'){
+        if(text.charAt(i + 1) === '"'){ field += '"'; i++; }
+        else inQ = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQ = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\r' || c === '\n'){
+        if(c === '\r' && text.charAt(i + 1) === '\n') i++;
+        row.push(field); field = ''; rows.push(row); row = [];
+      }
+      else field += c;
+    }
+  }
+  row.push(field); rows.push(row);
+  return rows.filter(function(r){
+    return r.some(function(x){ return String(x).trim() !== ''; });
+  });
+}
+function rowsToItems(rows){
+  if(!rows.length) return [];
+  var idx = { name:0, channel:1, amount:2, currency:3, payment:4, card:5 };
+  var start = 0;
+  var head = rows[0].map(function(s){ return String(s).trim(); });
+  if(head.some(function(h){ return HEADER_MAP[h]; })){
+    idx = {};
+    head.forEach(function(h, i){ if(HEADER_MAP[h]) idx[HEADER_MAP[h]] = i; });
+    start = 1;
+  }
+  var out = [];
+  for(var i = start; i < rows.length; i++){
+    var r = rows[i];
+    var get = function(k){
+      return idx[k] == null ? '' : String(r[idx[k]] == null ? '' : r[idx[k]]).trim();
+    };
+    var name = get('name');
+    var cents = parseCents(get('amount'));
+    if(!name && cents === null) continue;
+    var rawCur = get('currency');
+    var cur = (rawCur.toUpperCase().indexOf('HK') >= 0 || rawCur.indexOf('港') >= 0) ? 'HKD' : 'CNY';
+    out.push(normalizeItem({
+      name: name, channel: get('channel'), cents: cents === null ? 0 : cents,
+      currency: cur, payment: get('payment'), card: get('card')
+    }));
+  }
+  return out;
+}
+
+/* --- 时间 --- */
+function pad2(n){ return String(n).padStart(2, '0'); }
+function ymd(){
+  var d = new Date();
+  return '' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
+}
+function fmtDateTime(iso){
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) +
+         ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+
+/* ============================================================
+   2. 渲染
+   ============================================================ */
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+function inputOf(field){
+  return $('f' + field.charAt(0).toUpperCase() + field.slice(1));
+}
+
+function renderList(){
+  var box = $('listBox');
+  if(!state.items.length){
+    box.innerHTML = '<div class="list"><div class="empty">还没有账单<br>点右下角 + 添加，或从 CSV 导入</div></div>';
+  } else {
+    var html = '<div class="list">';
+    state.items.forEach(function(it){
+      var sub = [it.payment, it.card].filter(function(x){ return x && x.trim(); }).join(' · ');
+      html += '<button class="row" data-id="' + esc(it.id) + '">' +
+        '<span class="r1">' +
+          '<span class="r-name">' + esc(it.name || '（未命名）') + '</span>' +
+          '<span class="r-amt num">' + formatCents(it.cents) +
+            '<span class="tag tag-' + it.currency + '">' + it.currency + '</span>' +
+          '</span>' +
+        '</span>' +
+        '<span class="r2">' +
+          '<span class="r-ch">' + esc(it.channel || '—') + '</span>' +
+          '<span class="r-pay">' + esc(sub || '—') + '</span>' +
+        '</span>' +
+      '</button>';
+    });
+    box.innerHTML = html + '</div>';
+  }
+  renderExportHint();
+}
+function renderExportHint(){
+  $('exportHint').innerHTML = (state.lastExportAt
+      ? '上次导出 CSV：' + esc(fmtDateTime(state.lastExportAt))
+      : '尚未导出过 CSV') +
+    '<br>数据只保存在本机浏览器，请定期导出备份';
+}
+
+function renderReport(){
+  var t = totals();
+  $('ovCny').textContent = '￥' + formatCents(t.cny);
+  $('ovHkd').textContent = 'HK$' + formatCents(t.hkd);
+  $('ovRate').textContent = '1 HKD = ' + rate + ' CNY';
+  $('ovTotal').textContent = '￥' + formatCents(t.total);
+  $('cntItems').textContent = state.items.length;
+  $('rateNote').textContent = (rate === DEFAULT_RATE)
+    ? '当前为默认汇率 ' + DEFAULT_RATE
+    : '默认汇率 ' + DEFAULT_RATE;
+
+  var groups = groupBy(reportDim);
+  var body = '', sc = 0, sh = 0;
+  groups.forEach(function(g){
+    sc += g.cny; sh += g.hkd;
+    body += '<tr><td>' + esc(g.name) + '</td>' +
+            '<td class="num">' + formatCents(g.cny) + '</td>' +
+            '<td class="num">' + formatCents(g.hkd) + '</td></tr>';
+  });
+  if(!groups.length){
+    body = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px 0">暂无数据</td></tr>';
+  }
+  $('grpBody').innerHTML = body;
+  $('grpSumCny').textContent = formatCents(sc);
+  $('grpSumHkd').textContent = formatCents(sh);
+
+  Array.prototype.forEach.call($('segDim').children, function(b){
+    b.classList.toggle('on', b.getAttribute('data-dim') === reportDim);
+  });
+}
+
+function renderChips(){
+  [['name','chipsName'], ['channel','chipsChannel'], ['payment','chipsPayment'], ['card','chipsCard']].forEach(function(p){
+    var field = p[0], box = $(p[1]);
+    var cur = inputOf(field).value.trim();
+    box.innerHTML = historyValues(field).map(function(v){
+      return '<button type="button" class="chip' + (v === cur ? ' on' : '') + '" data-field="' + field +
+             '" data-val="' + esc(v) + '">' + esc(v) + '</button>';
+    }).join('');
+  });
+}
+function renderCurrency(){
+  $('curCNY').classList.toggle('on', sheetCurrency === 'CNY');
+  $('curHKD').classList.toggle('on', sheetCurrency === 'HKD');
+}
+function renderAll(){ renderList(); renderReport(); }
+
+function switchTab(tab){
+  currentTab = tab;
+  $('pageList').classList.toggle('hidden', tab !== 'list');
+  $('pageReport').classList.toggle('hidden', tab !== 'report');
+  $('tabList').classList.toggle('on', tab === 'list');
+  $('tabReport').classList.toggle('on', tab === 'report');
+  if(tab === 'report') renderReport();
+}
+
+/* --- 轻提示 --- */
+var toastTimer = null;
+function toast(msg){
+  var el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 1900);
+}
+
+/* --- 通用对话框（选择 / 输入） --- */
+var dlgResolve = null;
+function isSheetOpen(){ return $('sheet').classList.contains('show'); }
+function isDialogOpen(){ return $('dialog').classList.contains('show'); }
+function closeDialog(val){
+  $('dialog').classList.remove('show');
+  $('dlgInput').classList.add('hidden');
+  if(!isSheetOpen()) $('backdrop').classList.remove('show');
+  var r = dlgResolve; dlgResolve = null;
+  if(r) r(val);
+}
+function showDialog(opt){
+  return new Promise(function(resolve){
+    if(dlgResolve) closeDialog(null);
+    dlgResolve = resolve;
+    $('dlgTitle').textContent = opt.title || '';
+    $('dlgMsg').textContent = opt.message || '';
+    $('dlgMsg').classList.toggle('hidden', !opt.message);
+
+    var inp = $('dlgInput');
+    if(opt.input){
+      inp.classList.remove('hidden');
+      inp.value = opt.value == null ? '' : opt.value;
+      inp.placeholder = opt.placeholder || '';
+    } else {
+      inp.classList.add('hidden');
+    }
+
+    var acts = $('dlgActs');
+    acts.innerHTML = '';
+    (opt.actions || []).forEach(function(a){
+      var b = document.createElement('button');
+      b.textContent = a.label;
+      if(a.primary) b.className = 'primary';
+      if(a.danger) b.className = 'danger';
+      b.onclick = function(){
+        closeDialog(opt.input && a.value === '__ok' ? inp.value : a.value);
+      };
+      acts.appendChild(b);
+    });
+    var cancel = document.createElement('button');
+    cancel.textContent = '取消';
+    cancel.onclick = function(){ closeDialog(null); };
+    acts.appendChild(cancel);
+
+    $('backdrop').classList.add('show');
+    $('dialog').classList.add('show');
+    if(opt.input) setTimeout(function(){ inp.focus(); inp.select(); }, 150);
+  });
+}
+function showPrompt(opt){
+  return showDialog({
+    title: opt.title, message: opt.message, input: true,
+    value: opt.value, placeholder: opt.placeholder,
+    actions: [{ label:'确定', value:'__ok', primary:true }]
+  });
+}
+
+/* ============================================================
+   3. 事件
+   ============================================================ */
+
+/* --- 新增 / 编辑面板 --- */
+function openSheet(id){
+  var it = id ? state.items.filter(function(x){ return x.id === id; })[0] : null;
+  editingId = it ? it.id : null;
+  $('fName').value    = it ? it.name : '';
+  $('fChannel').value = it ? it.channel : '';
+  $('fAmount').value  = it ? plainAmount(it.cents) : '';
+  $('fPayment').value = it ? it.payment : '';
+  $('fCard').value    = it ? it.card : '';
+  sheetCurrency = it ? it.currency : 'CNY';
+  $('sheetTitle').textContent = it ? '编辑账单' : '新增账单';
+  $('btnDelete').classList.toggle('hidden', !it);
+  renderCurrency();
+  renderChips();
+  $('sheet').querySelector('.sheet-body').scrollTop = 0;
+  $('backdrop').classList.add('show');
+  $('sheet').classList.add('show');
+}
+function closeSheet(){
+  $('sheet').classList.remove('show');
+  if(!isDialogOpen()) $('backdrop').classList.remove('show');
+  editingId = null;
+  if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+function saveSheet(){
+  var name = $('fName').value.trim();
+  var cents = parseCents($('fAmount').value);
+  if(!name){ toast('请填写项目'); $('fName').focus(); return; }
+  if(cents === null){ toast('请填写有效金额'); $('fAmount').focus(); return; }
+  var data = {
+    name: name,
+    channel: $('fChannel').value.trim(),
+    cents: cents,
+    currency: sheetCurrency,
+    payment: $('fPayment').value.trim(),
+    card: $('fCard').value.trim()
+  };
+  var wasEdit = !!editingId, id = editingId;
+  if(wasEdit){
+    state.items.forEach(function(it){
+      if(it.id !== id) return;
+      it.name = data.name; it.channel = data.channel; it.cents = data.cents;
+      it.currency = data.currency; it.payment = data.payment; it.card = data.card;
+    });
+  } else {
+    state.items.push(normalizeItem(data));
+  }
+  saveState();
+  renderAll();
+  closeSheet();
+  toast(wasEdit ? '已保存' : '已添加');
+}
+
+$('fab').onclick = function(){ openSheet(null); };
+$('btnCancel').onclick = closeSheet;
+$('btnSave').onclick = saveSheet;
+$('backdrop').onclick = function(){
+  if(isDialogOpen()) closeDialog(null);
+  else closeSheet();
+};
+$('listBox').addEventListener('click', function(e){
+  var row = e.target.closest ? e.target.closest('.row') : null;
+  if(row) openSheet(row.getAttribute('data-id'));
+});
+$('sheet').addEventListener('click', function(e){
+  var chip = e.target.closest ? e.target.closest('.chip') : null;
+  if(chip){
+    var el = inputOf(chip.getAttribute('data-field'));
+    var val = chip.getAttribute('data-val');
+    el.value = (el.value.trim() === val) ? '' : val;   /* 再点一次取消 */
+    renderChips();
+    return;
+  }
+  var cur = e.target.closest ? e.target.closest('[data-cur]') : null;
+  if(cur){ sheetCurrency = cur.getAttribute('data-cur'); renderCurrency(); }
+});
+FIELDS.forEach(function(f){ inputOf(f).addEventListener('input', renderChips); });
+
+$('btnDelete').onclick = function(){
+  var id = editingId;
+  var it = state.items.filter(function(x){ return x.id === id; })[0];
+  if(!it) return;
+  showDialog({
+    title: '删除账单',
+    message: '确定删除「' + (it.name || '未命名') + '」？删除后无法恢复。',
+    actions: [{ label:'确认删除', value:'del', danger:true }]
+  }).then(function(v){
+    if(v !== 'del') return;
+    state.items = state.items.filter(function(x){ return x.id !== id; });
+    saveState(); renderAll(); closeSheet(); toast('已删除');
+  });
+};
+
+/* --- Tab / 统计维度 --- */
+$('tabList').onclick = function(){ switchTab('list'); };
+$('tabReport').onclick = function(){ switchTab('report'); };
+$('segDim').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('[data-dim]') : null;
+  if(!b) return;
+  reportDim = b.getAttribute('data-dim');
+  renderReport();
+});
+
+/* --- 汇率 --- */
+$('rateBox').onclick = function(){
+  showPrompt({
+    title: '修改汇率', message: '1 HKD = ? CNY',
+    value: String(rate), placeholder: String(DEFAULT_RATE)
+  }).then(function(v){
+    if(v === null) return;
+    var n = Number(String(v).trim());
+    if(!isFinite(n) || n <= 0){ toast('汇率必须是大于 0 的数字'); return; }
+    rate = n; saveRate(); renderReport(); toast('汇率已更新');
+  });
+};
+$('btnResetRate').onclick = function(){
+  rate = DEFAULT_RATE; saveRate(); renderReport(); toast('已恢复默认汇率');
+};
+
+/* --- 导出 CSV --- */
+function markExported(){
+  state.lastExportAt = new Date().toISOString();
+  saveState();
+  renderExportHint();
+}
+function downloadCSV(blob, filename){
+  try{
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    markExported();
+    toast('已导出 ' + filename);
+  }catch(e){ toast('导出失败'); }
+}
+$('btnExport').onclick = function(){
+  var filename = '香港账单_' + ymd() + '.csv';
+  var blob = new Blob([buildCSV()], { type: 'text/csv;charset=utf-8' });
+  var sharing = null;
+  try{
+    var file = new File([blob], filename, { type: 'text/csv' });
+    if(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
+      sharing = navigator.share({ files: [file], title: filename });
+    }
+  }catch(e){ sharing = null; }
+
+  if(sharing){
+    sharing.then(function(){
+      markExported(); toast('已导出');
+    }).catch(function(err){
+      if(err && err.name === 'AbortError') return;   /* 用户主动取消 */
+      downloadCSV(blob, filename);
+    });
+    return;
+  }
+  downloadCSV(blob, filename);
+};
+
+/* --- 导入 CSV --- */
+function readFile(file){
+  if(file.text) return file.text();
+  return new Promise(function(resolve, reject){
+    var fr = new FileReader();
+    fr.onload = function(){ resolve(String(fr.result)); };
+    fr.onerror = function(){ reject(fr.error); };
+    fr.readAsText(file, 'utf-8');
+  });
+}
+$('btnImport').onclick = function(){ $('fileInput').click(); };
+$('fileInput').addEventListener('change', function(e){
+  var file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  readFile(file).then(function(text){
+    var items = rowsToItems(parseCSV(text));
+    if(!items.length){ toast('没有解析到有效数据'); return; }
+    return showDialog({
+      title: '导入 CSV',
+      message: '读取到 ' + items.length + ' 条记录，选择导入方式：',
+      actions: [
+        { label:'追加到现有账单', value:'append', primary:true },
+        { label:'覆盖全部账单',   value:'replace', danger:true }
+      ]
+    }).then(function(mode){
+      if(!mode) return;
+      state.items = (mode === 'replace') ? items : state.items.concat(items);
+      saveState(); renderAll(); switchTab('list');
+      toast(mode === 'replace' ? ('已覆盖，共 ' + items.length + ' 条') : ('已追加 ' + items.length + ' 条'));
+    });
+  }).catch(function(){ toast('读取文件失败'); });
+});
+
+/* --- 复制报告 --- */
+function buildReportText(){
+  var t = totals(), groups = groupBy(reportDim), L = [];
+  L.push('香港账单 · 统计报告');
+  L.push('生成时间：' + fmtDateTime(new Date().toISOString()));
+  L.push('');
+  L.push('CNY 合计：￥' + formatCents(t.cny));
+  L.push('HKD 合计：HK$' + formatCents(t.hkd));
+  L.push('当前汇率：1 HKD = ' + rate + ' CNY');
+  L.push('折合人民币总额：￥' + formatCents(t.total));
+  L.push('');
+  L.push('【按' + DIM_LABEL[reportDim] + '统计】');
+  var sc = 0, sh = 0;
+  groups.forEach(function(g){
+    sc += g.cny; sh += g.hkd;
+    L.push(g.name + '：CNY ' + formatCents(g.cny) + ' ｜ HKD ' + formatCents(g.hkd));
+  });
+  L.push('合计：CNY ' + formatCents(sc) + ' ｜ HKD ' + formatCents(sh));
+  L.push('');
+  L.push('共 ' + state.items.length + ' 笔记录');
+  return L.join('\n');
+}
+function legacyCopy(text, cb){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+    var ok = document.execCommand('copy');
+    ta.remove();
+    cb(ok);
+  }catch(e){ cb(false); }
+}
+$('btnCopy').onclick = function(){
+  var text = buildReportText();
+  var done = function(ok){ toast(ok ? '报告已复制到剪贴板' : '复制失败，请手动选择文本'); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ done(true); })
+      .catch(function(){ legacyCopy(text, done); });
+  } else {
+    legacyCopy(text, done);
+  }
+};
+
+/* ============================================================
+   4. 启动
+   ============================================================ */
+loadRate();
+loadState();
+renderAll();
+switchTab('list');
+
+if('serviceWorker' in navigator && location.protocol !== 'file:'){
+  window.addEventListener('load', function(){
+    try{ navigator.serviceWorker.register('./sw.js', { scope: './' }); }catch(e){}
+  });
+}
+</script>
+</body>
+</html>
